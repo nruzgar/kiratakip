@@ -100,7 +100,7 @@ export default function NewPaymentPage() {
     // Ödemeyi ekle
     const { error } = await (supabase as any)
       .from('payments')
-      .insert({
+      .insert(({
         rent_period_id: rentPeriodId,
         tenant_id: selectedTenant,
         property_id: period.property_id,
@@ -109,7 +109,7 @@ export default function NewPaymentPage() {
         method: formData.get('method') as string,
         description: formData.get('description') as string,
         user_id: user.id,
-      })
+      }) as any)
 
     if (error) {
       setMessage('Hata: ' + error.message)
