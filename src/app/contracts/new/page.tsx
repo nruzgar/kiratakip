@@ -69,7 +69,7 @@ export default function NewContractPage() {
 
     const { error } = await (supabase as any)
       .from('contracts')
-      .insert({ ...contractData, user_id: user.id })
+      .insert(contractData)
 
     if (error) {
       setMessage('Hata: ' + error.message)
