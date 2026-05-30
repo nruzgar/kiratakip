@@ -43,9 +43,11 @@ async function buildNotificationForUser(supabase: ReturnType<typeof createSupaba
       throw summaryError
     }
 
-    const totalExpected = rentPeriods?.reduce((sum, row) => sum + (row.expected_amount || 0), 0) ?? 0
-    const totalPaid = rentPeriods?.reduce((sum, row) => sum + (row.paid_amount || 0), 0) ?? 0
-    const overdueCount = rentPeriods?.filter((row) => row.status === 'overdue').length || 0
+    const rentPeriodsAny = (rentPeriods ?? []) as any[]
+
+    const totalExpected = rentPeriodsAny.reduce((sum, row) => sum + (row.expected_amount || 0), 0) ?? 0
+    const totalPaid = rentPeriodsAny.reduce((sum, row) => sum + (row.paid_amount || 0), 0) ?? 0
+    const overdueCount = rentPeriodsAny.filter((row) => row.status === 'overdue').length || 0
 
     lines.push('📋 *Günlük Özet*')
     lines.push(`Beklenen kira: ${formatCurrency(totalExpected)}`)
@@ -67,10 +69,11 @@ async function buildNotificationForUser(supabase: ReturnType<typeof createSupaba
     if (overdueError) {
       throw overdueError
     }
+    const overdueAny = (overdue ?? []) as any[]
 
-    if (overdue && overdue.length > 0) {
+    if (overdueAny.length > 0) {
       lines.push('⚠️ *Gecikmiş kira uyarısı*')
-      overdue.forEach((row) => {
+      overdueAny.forEach((row) => {
         const tenantName = row.tenants?.full_name ?? 'Kiracı'
         const propertyName = row.properties?.name ?? 'Mülk'
         const amount = formatCurrency(row.expected_amount || 0)
@@ -97,10 +100,11 @@ async function buildNotificationForUser(supabase: ReturnType<typeof createSupaba
     if (contractError) {
       throw contractError
     }
+    const contractsAny = (contracts ?? []) as any[]
 
-    if (contracts && contracts.length > 0) {
+    if (contractsAny.length > 0) {
       lines.push('📆 *Sözleşme bitiş hatırlatması*')
-      contracts.forEach((contract) => {
+      contractsAny.forEach((contract) => {
         const name = contract.tenants?.full_name ?? contract.properties?.name ?? 'Sözleşme'
         const daysLeft = Math.ceil((new Date(contract.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
         lines.push(`- ${name} | ${contract.end_date} | ${daysLeft} gün kaldı`)
