@@ -27,9 +27,9 @@ export default function EditPropertyForm({ property }: { property: any }) {
     }
 
     const supabase = createClient()
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('properties')
-      .update(updates)
+      .update(updates as any)
       .eq('id', property.id)
 
     if (error) {
