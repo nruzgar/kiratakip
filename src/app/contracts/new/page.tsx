@@ -67,7 +67,7 @@ export default function NewContractPage() {
       return
     }
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('contracts')
       .insert({ ...contractData, user_id: user.id })
 
