@@ -18,7 +18,7 @@ function todayDateKey() {
   return new Date().toISOString().slice(0, 10)
 }
 
-async function buildNotificationForUser(supabase: ReturnType<typeof createSupabaseClient>, setting: Database['public']['Tables']['notification_settings']['Row'], forceSummary: boolean) {
+async function buildNotificationForUser(supabase: any, setting: Database['public']['Tables']['notification_settings']['Row'], forceSummary: boolean) {
   if (!setting.telegram_chat_id) {
     return { sent: false, reason: 'chat_id yok' }
   }
