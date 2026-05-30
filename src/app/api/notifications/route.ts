@@ -157,7 +157,9 @@ export async function POST(request: Request) {
 
   const results: Array<{ user_id: string; sent: boolean; reason?: string; error?: string }> = []
 
-  for (const setting of settings ?? []) {
+  const settingsAny = (settings ?? []) as any[]
+
+  for (const setting of settingsAny) {
     try {
       const result = await buildNotificationForUser(supabase, setting, force)
       results.push({ user_id: setting.user_id, sent: result.sent, reason: result.reason })
