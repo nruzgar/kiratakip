@@ -20,6 +20,8 @@ export default async function EditPropertyPage({ params }: { params: Promise<{ i
 
   if (!property) redirect('/properties')
 
+  const propertyAny = property as any
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm border-b">
@@ -32,8 +34,8 @@ export default async function EditPropertyPage({ params }: { params: Promise<{ i
       </nav>
 
       <main className="max-w-2xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-6">Mülk Düzenle: {property.name}</h1>
-        <EditPropertyForm property={property} />
+        <h1 className="text-2xl font-bold mb-6">Mülk Düzenle: {propertyAny.name}</h1>
+        <EditPropertyForm property={propertyAny} />
       </main>
     </div>
   )
