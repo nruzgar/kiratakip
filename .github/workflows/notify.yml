@@ -1,0 +1,18 @@
+name: Notification Scheduler
+
+on:
+  schedule:
+    - cron: '0 7 * * *' # Her gün saat 07:00 UTC'de çalışır
+  workflow_dispatch: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call notification API
+        run: |
+          curl -X POST "$NOTIFICATION_API_URL" \
+            -H "Content-Type: application/json" \
+            -d '{"action":"trigger"}'
+        env:
+          NOTIFICATION_API_URL: ${{ secrets.NOTIFICATION_API_URL }}

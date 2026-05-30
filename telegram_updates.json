@@ -1,0 +1,2 @@
+﻿{"ok":true,"result":[{"update_id":998139643,
+"message":{"message_id":1,"from":{"id":5387189328,"is_bot":false,"first_name":"Necat","last_name":"R\u00fczgar","language_code":"tr"},"chat":{"id":5387189328,"first_name":"Necat","last_name":"R\u00fczgar","type":"private"},"date":1780177436,"text":"/start","entities":[{"offset":0,"length":6,"type":"bot_command"}]}}]}
