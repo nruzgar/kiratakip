@@ -19,6 +19,8 @@ export default async function PaymentsPage() {
     .eq('user_id', user.id)
     .order('payment_date', { ascending: false })
 
+  const paymentsAny = (payments ?? []) as any[]
+
   return (
     <div className="min-h-screen bg-gray-50">
       <nav className="bg-white shadow-sm border-b">
@@ -47,7 +49,7 @@ export default async function PaymentsPage() {
           </Link>
         </div>
 
-        {payments && payments.length > 0 ? (
+        {paymentsAny && paymentsAny.length > 0 ? (
           <div className="bg-white rounded-lg shadow overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -61,7 +63,7 @@ export default async function PaymentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {payments.map((payment) => (
+                {paymentsAny.map((payment) => (
                   <tr key={payment.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {new Date(payment.payment_date).toLocaleDateString('tr-TR')}
