@@ -98,7 +98,7 @@ export default function NewPaymentPage() {
     }
 
     // Ödemeyi ekle
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('payments')
       .insert({
         rent_period_id: rentPeriodId,
