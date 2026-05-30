@@ -50,9 +50,9 @@ export default function EditPropertyPage({ params }: { params: Promise<{ id: str
     }
 
     const supabase = createClient()
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('properties')
-      .update(updates)
+      .update(updates as any)
       .eq('id', id)
 
     if (error) {
