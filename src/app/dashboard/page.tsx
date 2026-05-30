@@ -18,11 +18,12 @@ export default async function DashboardPage() {
     .eq('user_id', user.id)
     .eq('year', currentYear)
     .eq('month', currentMonth)
+  const rentPeriodsAny = (rentPeriods ?? []) as any[]
 
-  const totalExpected = rentPeriods?.reduce((sum, r) => sum + (r.expected_amount || 0), 0) || 0
-  const totalCollected = rentPeriods?.reduce((sum, r) => sum + (r.paid_amount || 0), 0) || 0
+  const totalExpected = rentPeriodsAny.reduce((sum, r) => sum + (r.expected_amount || 0), 0) || 0
+  const totalCollected = rentPeriodsAny.reduce((sum, r) => sum + (r.paid_amount || 0), 0) || 0
   const remainingDebt = totalExpected - totalCollected
-  const overdueCount = rentPeriods?.filter(r => r.status === 'overdue').length || 0
+  const overdueCount = rentPeriodsAny.filter(r => r.status === 'overdue').length || 0
 
   // Yaklaşan sözleşmeler
   const thirtyDaysLater = new Date()
