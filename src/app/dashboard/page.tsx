@@ -37,6 +37,8 @@ export default async function DashboardPage() {
     .gte('end_date', new Date().toISOString().split('T')[0])
     .order('end_date', { ascending: true })
 
+  const upcomingContractsAny = (upcomingContracts ?? []) as any[]
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
@@ -95,7 +97,7 @@ export default async function DashboardPage() {
           <div className="p-6">
             {upcomingContracts && upcomingContracts.length > 0 ? (
               <div className="space-y-3">
-                {upcomingContracts.map((contract) => {
+                {upcomingContractsAny.map((contract) => {
                   const daysLeft = Math.ceil((new Date(contract.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
                   return (
                     <div key={contract.id} className="flex items-center justify-between p-3 bg-gray-50 rounded">
