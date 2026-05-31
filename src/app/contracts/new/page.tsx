@@ -69,7 +69,7 @@ function NewContractContent() {
 
     const { error } = await supabase
       .from('contracts')
-      .insert({ ...contractData, user_id: user.id })
+      .insert({ ...contractData, user_id: user.id } as any)
 
     if (error) {
       setMessage('Hata: ' + error.message)

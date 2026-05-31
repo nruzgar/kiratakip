@@ -30,14 +30,14 @@ export default function NewPropertyPage() {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      setMessage('Oturum açmanız gerekiyor')
+      setMessage('Hata: Oturum açmanız gerekiyor')
       setLoading(false)
       return
     }
 
     const { error } = await supabase
       .from('properties')
-      .insert({ ...propertyData, user_id: user.id })
+      .insert({ ...propertyData, user_id: user.id } as any)
 
     if (error) {
       setMessage('Hata: ' + error.message)

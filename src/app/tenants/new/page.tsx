@@ -55,7 +55,7 @@ export default function NewTenantPage() {
 
     const { error } = await supabase
       .from('tenants')
-      .insert({ ...tenantData, user_id: user.id })
+      .insert({ ...tenantData, user_id: user.id } as any)
 
     if (error) {
       setMessage('Hata: ' + error.message)

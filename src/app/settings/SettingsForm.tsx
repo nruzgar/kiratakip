@@ -4,175 +4,137 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function SettingsForm({ settings }: { settings: any }) {
-  const [telegramChatId, setTelegramChatId] = useState(settings?.telegram_chat_id ?? '')
-  const [dailySummaryEnabled, setDailySummaryEnabled] = useState(settings?.daily_summary_enabled ?? false)
-  const [dailySummaryTime, setDailySummaryTime] = useState(settings?.daily_summary_time ?? '09:00')
-  const [overdueAlertEnabled, setOverdueAlertEnabled] = useState(settings?.overdue_alert_enabled ?? false)
-  const [contractAlertDays, setContractAlertDays] = useState(settings?.contract_alert_days?.toString() ?? '30')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
 
-  const handleSave = async () => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
     setLoading(true)
     setMessage('')
 
-    const contractDays = Number(contractAlertDays)
-    if (Number.isNaN(contractDays) || contractDays < 0) {
-      setMessage('Hata: Sözleşme hatırlatma günü pozitif bir sayı olmalıdır')
+    const formData = new FormData(e.currentTarget)
+
+    const formValues = {
+      telegram_chat_id: formData.get('telegram_chat_id') as string || null,
+      daily_summary_enabled: formData.get('daily_summary_enabled') === 'on',
+      daily_summary_time: formData.get('daily_summary_time') as string || '09:00',
+      overdue_alert_enabled: formData.get('overdue_alert_enabled') === 'on',
+      contract_alert_days: Number(formData.get('contract_alert_days')) || 30,
+    }
+
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      setMessage('Hata: Oturum açmanız gerekiyor')
       setLoading(false)
       return
     }
 
-    try {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        setMessage('Hata: Oturum açmanız gerekiyor')
-        setLoading(false)
-        return
-      }
-
-      const { error } = await supabase
-        .from('notification_settings')
-        .upsert({
-          user_id: user.id,
-          telegram_chat_id: telegramChatId || null,
-          daily_summary_enabled: dailySummaryEnabled,
-          daily_summary_time: dailySummaryTime,
-          overdue_alert_enabled: overdueAlertEnabled,
-          contract_alert_days: contractDays,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id'
-        })
-
-      if (error) {
-        setMessage('Hata: ' + error.message)
-      } else {
-        setMessage('Ayarlar başarıyla kaydedildi!')
-      }
-    } catch (err: any) {
-      setMessage('Hata: ' + err.message)
-    }
-
-    setLoading(false)
-  }
-
-  const handleTest = async () => {
-    if (!telegramChatId) {
-      setMessage('Hata: Telegram Chat ID boş olamaz.')
-      return
-    }
-
-    setLoading(true)
-    setMessage('')
-
-    try {
-      const response = await fetch('/api/notifications', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'test', telegram_chat_id: telegramChatId }),
+    const { error } = await supabase
+      .from('notification_settings')
+      .upsert({
+        user_id: user.id,
+        ...formValues,
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'user_id'
       })
 
-      const data = await response.json()
-      if (!response.ok) {
-        throw new Error(data.error || 'Test mesajı gönderilemedi.')
-      }
-
-      setMessage('Test bildirimi gönderildi. Telegram’da kontrol edin.')
-    } catch (err: any) {
-      setMessage('Hata: ' + err.message)
+    if (error) {
+      setMessage('Hata: ' + error.message)
+    } else {
+      setMessage('Ayarlar başarıyla kaydedildi!')
     }
 
     setLoading(false)
   }
 
   return (
-    <div className="bg-white rounded-lg shadow p-6 space-y-6">
+    <>
       {message && (
         <div className={`mb-4 p-3 rounded ${message.includes('Hata') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
           {message}
         </div>
       )}
 
-      <div className="space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 space-y-6">
         <div>
           <h2 className="text-lg font-semibold mb-4">Telegram Bildirimleri</h2>
-          <label className="block mb-2 text-sm font-medium text-gray-700">Telegram Chat ID</label>
-          <input
-            type="text"
-            value={telegramChatId}
-            onChange={(e) => setTelegramChatId(e.target.value)}
-            className="w-full rounded-md border border-gray-300 p-2 focus:border-blue-500 focus:outline-none"
-            placeholder="Telegram chat ID veya kullanıcı adı"
-          />
-          <p className="mt-2 text-xs text-gray-500">
-            Bu ID ile botunuzun size mesaj göndermesi için Telegram bot token&apos;ını `TELEGRAM_BOT_TOKEN` olarak tanımlayın.
-          </p>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Telegram Chat ID</label>
+              <input 
+                name="telegram_chat_id" 
+                type="text" 
+                defaultValue={settings?.telegram_chat_id || ''}
+                placeholder="Örn: 123456789"
+                className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+              <div>
+                <p className="font-medium">Günlük Özet</p>
+                <p className="text-sm text-gray-500">Her gün kira durumunu al</p>
+              </div>
+              <input 
+                name="daily_summary_enabled" 
+                type="checkbox" 
+                defaultChecked={settings?.daily_summary_enabled || false}
+                className="w-5 h-5 text-blue-600 rounded"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Günlük Özet Saati</label>
+              <input 
+                name="daily_summary_time" 
+                type="time" 
+                defaultValue={settings?.daily_summary_time || '09:00'}
+                className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded">
+              <div>
+                <p className="font-medium">Gecikme Uyarısı</p>
+                <p className="text-sm text-gray-500">Geciken kiracılar için uyarı al</p>
+              </div>
+              <input 
+                name="overdue_alert_enabled" 
+                type="checkbox" 
+                defaultChecked={settings?.overdue_alert_enabled !== false}
+                className="w-5 h-5 text-blue-600 rounded"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Sözleşme Bitiş Uyarısı</label>
+              <select 
+                name="contract_alert_days"
+                defaultValue={settings?.contract_alert_days || 30}
+                className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="30">30 gün önce</option>
+                <option value="60">60 gün önce</option>
+                <option value="90">90 gün önce</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-3">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-              <input
-                type="checkbox"
-                checked={dailySummaryEnabled}
-                onChange={(e) => setDailySummaryEnabled(e.target.checked)}
-                className="h-4 w-4"
-              />
-              Günlük özet bildirimi etkin
-            </label>
-            <label className="block text-sm font-medium text-gray-700">Özet gönderim saati</label>
-            <input
-              type="time"
-              value={dailySummaryTime}
-              onChange={(e) => setDailySummaryTime(e.target.value)}
-              className="w-full rounded-md border border-gray-300 p-2 focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="space-y-3">
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-              <input
-                type="checkbox"
-                checked={overdueAlertEnabled}
-                onChange={(e) => setOverdueAlertEnabled(e.target.checked)}
-                className="h-4 w-4"
-              />
-              Gecikme bildirimi etkin
-            </label>
-            <label className="block text-sm font-medium text-gray-700">Sözleşme bitiş hatırlatma günü</label>
-            <input
-              type="number"
-              min="0"
-              value={contractAlertDays}
-              onChange={(e) => setContractAlertDays(e.target.value)}
-              className="w-full rounded-md border border-gray-300 p-2 focus:border-blue-500 focus:outline-none"
-              placeholder="Gün sayısı"
-            />
-          </div>
+        <div className="border-t pt-6">
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
+          </button>
         </div>
-      </div>
-
-      <div className="space-y-3">
-        <button
-          onClick={handleSave}
-          disabled={loading}
-          className="w-full py-2 px-4 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 cursor-pointer"
-        >
-          {loading ? 'Kaydediliyor...' : 'Ayarları Kaydet'}
-        </button>
-
-        <button
-          type="button"
-          onClick={handleTest}
-          disabled={loading}
-          className="w-full py-2 px-4 border border-blue-600 text-blue-600 rounded-md hover:bg-blue-50 disabled:opacity-50"
-        >
-          {loading ? 'Bekleyiniz...' : 'Telegram Test Mesajı Gönder'}
-        </button>
-      </div>
-    </div>
+      </form>
+    </>
   )
 }
