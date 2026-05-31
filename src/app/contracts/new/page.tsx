@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function NewContractPage() {
+function NewContractContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preSelectedTenant = searchParams.get('tenant')
@@ -67,9 +67,9 @@ export default function NewContractPage() {
       return
     }
 
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('contracts')
-      .insert(contractData)
+      .insert({ ...contractData, user_id: user.id })
 
     if (error) {
       setMessage('Hata: ' + error.message)
@@ -172,5 +172,13 @@ export default function NewContractPage() {
         </form>
       </main>
     </div>
+  )
+}
+
+export default function NewContractPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Yükleniyor...</div>}>
+      <NewContractContent />
+    </Suspense>
   )
 }

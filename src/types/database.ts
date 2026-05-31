@@ -43,6 +43,7 @@ export interface Database {
           user_id?: string
           created_at?: string
         }
+        Relationships: []
       }
       tenants: {
         Row: {
@@ -78,6 +79,15 @@ export interface Database {
           user_id?: string
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "tenants_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       contracts: {
         Row: {
@@ -119,6 +129,22 @@ export interface Database {
           user_id?: string
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       rent_periods: {
         Row: {
@@ -160,6 +186,22 @@ export interface Database {
           user_id?: string
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "rent_periods_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_periods_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       payments: {
         Row: {
@@ -198,6 +240,29 @@ export interface Database {
           user_id?: string
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "payments_rent_period_id_fkey"
+            columns: ["rent_period_id"]
+            isOneToOne: false
+            referencedRelation: "rent_periods"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       receipts: {
         Row: {
@@ -230,6 +295,29 @@ export interface Database {
           user_id?: string
           uploaded_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       notification_settings: {
         Row: {
@@ -262,6 +350,7 @@ export interface Database {
           contract_alert_days?: number
           updated_at?: string
         }
+        Relationships: []
       }
     }
     Views: { [_ in never]: never }

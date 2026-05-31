@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function NewPaymentPage() {
+function NewPaymentContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preSelectedTenant = searchParams.get('tenant')
@@ -98,9 +98,9 @@ export default function NewPaymentPage() {
     }
 
     // Ödemeyi ekle
-    const { error } = await (supabase as any)
+    const { error } = await supabase
       .from('payments')
-      .insert(({
+      .insert({
         rent_period_id: rentPeriodId,
         tenant_id: selectedTenant,
         property_id: period.property_id,
@@ -109,7 +109,7 @@ export default function NewPaymentPage() {
         method: formData.get('method') as string,
         description: formData.get('description') as string,
         user_id: user.id,
-      }) as any)
+      })
 
     if (error) {
       setMessage('Hata: ' + error.message)
@@ -220,5 +220,13 @@ export default function NewPaymentPage() {
         </form>
       </main>
     </div>
+  )
+}
+
+export default function NewPaymentPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-50 flex items-center justify-center">Yükleniyor...</div>}>
+      <NewPaymentContent />
+    </Suspense>
   )
 }
