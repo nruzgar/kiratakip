@@ -170,3 +170,33 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ success: true, results })
 }
+
+export async function GET() {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    return NextResponse.json({ error: 'Supabase ayarları eksik.' }, { status: 500 })
+  }
+
+  const supabase = createSupabaseClient<Database>(SUPABASE_URL, SUPABASE_KEY)
+
+  const { data: settings, error } = await supabase
+    .from('notification_settings')
+    .select('id,user_id,telegram_chat_id,daily_summary_enabled,daily_summary_time,overdue_alert_enabled,contract_alert_days')
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  const results: Array<{ user_id: string; sent: boolean; reason?: string; error?: string }> = []
+  const settingsAny = (settings ?? []) as any[]
+
+  for (const setting of settingsAny) {
+    try {
+      const result = await buildNotificationForUser(supabase, setting, false)
+      results.push({ user_id: setting.user_id, sent: result.sent, reason: result.reason })
+    } catch (error: any) {
+      results.push({ user_id: setting.user_id, sent: false, error: error.message })
+    }
+  }
+
+  return NextResponse.json({ success: true, results })
+}

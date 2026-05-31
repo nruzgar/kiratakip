@@ -125,7 +125,7 @@ export default function SettingsForm({ settings }: { settings: any }) {
           </div>
         </div>
 
-        <div className="border-t pt-6">
+        <div className="border-t pt-6 space-y-3">
           <button 
             type="submit" 
             disabled={loading}
@@ -135,6 +135,79 @@ export default function SettingsForm({ settings }: { settings: any }) {
           </button>
         </div>
       </form>
+
+      {/* Telegram Test & Manuel Bildirim */}
+      <div className="bg-white rounded-lg shadow p-6 mt-6 space-y-4">
+        <h2 className="text-lg font-semibold">Telegram Bildirim Test</h2>
+        
+        <button
+          onClick={async () => {
+            setLoading(true)
+            setMessage('')
+            const supabase = createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) { setMessage('Hata: Oturum açın'); setLoading(false); return }
+
+            const { data: currentSettings } = await supabase
+              .from('notification_settings')
+              .select('telegram_chat_id')
+              .eq('user_id', user.id)
+              .single()
+
+            const chatId = currentSettings?.telegram_chat_id
+            if (!chatId) { setMessage('Hata: Önce Telegram Chat ID kaydedin'); setLoading(false); return }
+
+            try {
+              const res = await fetch('/api/notifications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'test', telegram_chat_id: chatId }),
+              })
+              const data = await res.json()
+              if (data.success) {
+                setMessage('✅ Test mesajı Telegram\'a gönderildi!')
+              } else {
+                setMessage('Hata: ' + (data.error || 'Bilinmeyen hata'))
+              }
+            } catch (err: any) {
+              setMessage('Hata: ' + (err.message || 'Bağlantı hatası'))
+            }
+            setLoading(false)
+          }}
+          disabled={loading}
+          className="w-full py-2 px-4 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50"
+        >
+          {loading ? 'Gönderiliyor...' : '🔔 Test Bildirimi Gönder'}
+        </button>
+
+        <button
+          onClick={async () => {
+            setLoading(true)
+            setMessage('')
+            try {
+              const res = await fetch('/api/notifications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'trigger', force: true }),
+              })
+              const data = await res.json()
+              if (data.success) {
+                const sent = data.results?.filter((r: any) => r.sent).length || 0
+                setMessage(`✅ Günlük özet gönderildi! (${sent} bildirim)`)
+              } else {
+                setMessage('Hata: ' + (data.error || 'Bilinmeyen hata'))
+              }
+            } catch (err: any) {
+              setMessage('Hata: ' + (err.message || 'Bağlantı hatası'))
+            }
+            setLoading(false)
+          }}
+          disabled={loading}
+          className="w-full py-2 px-4 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50"
+        >
+          {loading ? 'Gönderiliyor...' : '📋 Günlük Özeti Şimdi Gönder'}
+        </button>
+      </div>
     </>
   )
 }

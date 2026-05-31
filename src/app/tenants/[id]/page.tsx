@@ -36,7 +36,12 @@ export default async function TenantDetailPage({ params }: { params: Promise<{ i
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-16 space-x-8">
             <Link href="/dashboard" className="text-xl font-bold text-blue-600">KiraTakip</Link>
-            <Link href="/tenants" className="text-gray-700 hover:text-blue-600">← Kiracılar'a Dön</Link>
+            <Link href="/dashboard" className="text-gray-700 hover:text-blue-600">Dashboard</Link>
+            <Link href="/properties" className="text-gray-700 hover:text-blue-600">Mülkler</Link>
+            <Link href="/tenants" className="text-blue-600 font-medium">Kiracılar</Link>
+            <Link href="/contracts" className="text-gray-700 hover:text-blue-600">Sözleşmeler</Link>
+            <Link href="/payments" className="text-gray-700 hover:text-blue-600">Ödemeler</Link>
+            <Link href="/settings" className="text-gray-700 hover:text-blue-600">Ayarlar</Link>
           </div>
         </div>
       </nav>

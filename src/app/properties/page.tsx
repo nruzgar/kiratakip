@@ -24,6 +24,7 @@ export default async function PropertiesPage() {
               <Link href="/dashboard" className="text-gray-700 hover:text-blue-600">Dashboard</Link>
               <Link href="/properties" className="text-blue-600 font-medium">Mülkler</Link>
               <Link href="/tenants" className="text-gray-700 hover:text-blue-600">Kiracılar</Link>
+              <Link href="/contracts" className="text-gray-700 hover:text-blue-600">Sözleşmeler</Link>
               <Link href="/payments" className="text-gray-700 hover:text-blue-600">Ödemeler</Link>
               <Link href="/settings" className="text-gray-700 hover:text-blue-600">Ayarlar</Link>
             </div>
