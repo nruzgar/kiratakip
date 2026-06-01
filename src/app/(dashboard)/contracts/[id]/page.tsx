@@ -42,8 +42,11 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
     const daysLeft = Math.ceil((endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
     const isExpired = daysLeft < 0
 
-    const statusLabel = contract.status === 'active' ? 'Aktif' : contract.status === 'expired' ? 'Süresi Dolmuş' : 'İptal Edildi'
-    const statusBadge = contract.status === 'active' ? 'badge-success' : contract.status === 'expired' ? 'badge-danger' : 'badge-neutral'
+    // status NULL ise ve bitiş tarihi geçmemişse aktif say
+    const isActive = contract.status === 'active' || (!contract.status && !isExpired)
+    const isCancelled = contract.status === 'cancelled'
+    const statusLabel = isActive ? 'Aktif' : isCancelled ? 'İptal Edildi' : 'Süresi Dolmuş'
+    const statusBadge = isActive ? 'badge-success' : isCancelled ? 'badge-neutral' : 'badge-danger'
 
     return (
         <div className="page-container">
@@ -60,12 +63,12 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        {contract.status === 'active' && (
+                        {isActive && (
                             <Link href={`/contracts/${id}/edit`} className="btn-primary text-sm py-2 px-4">
                                 ✏️ Düzenle
                             </Link>
                         )}
-                        <ContractActions contractId={id} contractStatus={contract.status} />
+                        <ContractActions contractId={id} isActive={isActive} />
                     </div>
                 </div>
 
@@ -168,17 +171,17 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
                                 const payments = (period.payments || []) as any[]
                                 return (
                                     <div key={period.id} className={`p-4 rounded-xl border ${period.status === 'paid' ? 'bg-green-500/10 border-green-500/20' :
-                                            period.status === 'overdue' ? 'bg-red-500/10 border-red-500/20' :
-                                                period.status === 'partial' ? 'bg-amber-500/10 border-amber-500/20' :
-                                                    'bg-white/[0.03] border-white/[0.06]'
+                                        period.status === 'overdue' ? 'bg-red-500/10 border-red-500/20' :
+                                            period.status === 'partial' ? 'bg-amber-500/10 border-amber-500/20' :
+                                                'bg-white/[0.03] border-white/[0.06]'
                                         }`}>
                                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                                             <div>
                                                 <div className="flex items-center gap-2">
                                                     <p className="font-medium text-white">{period.month}/{period.year}</p>
                                                     <span className={`badge text-xs ${period.status === 'paid' ? 'badge-success' :
-                                                            period.status === 'overdue' ? 'badge-danger' :
-                                                                period.status === 'partial' ? 'badge-warning' : 'badge-neutral'
+                                                        period.status === 'overdue' ? 'badge-danger' :
+                                                            period.status === 'partial' ? 'badge-warning' : 'badge-neutral'
                                                         }`}>
                                                         {period.status === 'paid' ? 'Ödendi' :
                                                             period.status === 'overdue' ? 'Gecikti' :

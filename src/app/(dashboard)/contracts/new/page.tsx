@@ -35,6 +35,8 @@ function NewContractContent() {
       tenant_id: formData.get('tenant_id') as string, property_id: formData.get('property_id') as string,
       start_date: formData.get('start_date') as string, end_date: formData.get('end_date') as string,
       rent_amount: Number(formData.get('rent_amount')), deposit_amount: Number(formData.get('deposit_amount')),
+      payment_day: Number(formData.get('payment_day')) || 5,
+      status: 'active',
       notes: formData.get('notes') as string,
     }
     const supabase = createClient()
@@ -81,7 +83,7 @@ function NewContractContent() {
             <input name="end_date" type="date" required className="input-dark" />
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Aylık Kira (TL) *</label>
             <input name="rent_amount" type="number" required min="0" className="input-dark" placeholder="15000" />
@@ -89,6 +91,10 @@ function NewContractContent() {
           <div>
             <label className="block text-sm font-medium text-slate-300 mb-2">Depozito (TL)</label>
             <input name="deposit_amount" type="number" min="0" defaultValue="0" className="input-dark" placeholder="30000" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Ödeme Günü *</label>
+            <input name="payment_day" type="number" required min="1" max="31" defaultValue="5" className="input-dark" />
           </div>
         </div>
         <div>

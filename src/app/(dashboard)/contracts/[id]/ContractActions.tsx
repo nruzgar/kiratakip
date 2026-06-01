@@ -2,28 +2,25 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { cancelContract } from '@/lib/actions/contracts'
 
 interface Props {
     contractId: string
-    contractStatus: string
+    isActive: boolean
 }
 
-export default function ContractActions({ contractId, contractStatus }: Props) {
+export default function ContractActions({ contractId, isActive }: Props) {
     const router = useRouter()
     const [loading, setLoading] = useState(false)
     const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
     const handleCancelContract = async () => {
         setLoading(true)
-        const supabase = createClient()
-        const { error } = await supabase
-            .from('contracts')
-            .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-            .eq('id', contractId)
-
-        if (!error) {
+        try {
+            await cancelContract(contractId)
             router.refresh()
+        } catch (e: any) {
+            alert('Hata: ' + e.message)
         }
         setLoading(false)
         setShowCancelConfirm(false)
@@ -35,7 +32,7 @@ export default function ContractActions({ contractId, contractStatus }: Props) {
 
     return (
         <div className="flex gap-2">
-            {contractStatus === 'active' && (
+            {isActive && (
                 <>
                     <button
                         onClick={() => setShowCancelConfirm(true)}
