@@ -8,9 +8,23 @@ export async function cancelContract(contractId: string) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) throw new Error('Oturum açmanız gerekiyor')
 
+    // Mevcut sözleşme bilgilerini al
+    const { data: contract } = await supabase
+        .from('contracts')
+        .select('*')
+        .eq('id', contractId)
+        .eq('user_id', user.id)
+        .single()
+
+    if (!contract) throw new Error('Sözleşme bulunamadı')
+
+    // Bitiş tarihini bugüne çek ve notes'a iptal bilgisi ekle
+    const today = new Date().toISOString().split('T')[0]
+    const cancelNote = `[İPTAL EDİLDİ: ${new Date().toLocaleDateString('tr-TR')}] ${contract.notes || ''}`.trim()
+
     const { error } = await supabase
         .from('contracts')
-        .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
+        .update({ end_date: today, notes: cancelNote } as any)
         .eq('id', contractId)
         .eq('user_id', user.id)
 

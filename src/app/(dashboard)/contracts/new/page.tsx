@@ -35,7 +35,6 @@ function NewContractContent() {
       tenant_id: formData.get('tenant_id') as string, property_id: formData.get('property_id') as string,
       start_date: formData.get('start_date') as string, end_date: formData.get('end_date') as string,
       rent_amount: Number(formData.get('rent_amount')), deposit_amount: Number(formData.get('deposit_amount')),
-      status: 'active',
       notes: formData.get('notes') as string,
     }
     const supabase = createClient()

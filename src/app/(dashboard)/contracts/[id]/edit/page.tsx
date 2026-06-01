@@ -59,9 +59,7 @@ export default function EditContractPage({ params }: { params: Promise<{ id: str
             end_date: formData.get('end_date') as string,
             rent_amount: Number(formData.get('rent_amount')),
             deposit_amount: Number(formData.get('deposit_amount')),
-            payment_day: Number(formData.get('payment_day')),
             notes: formData.get('notes') as string,
-            updated_at: new Date().toISOString(),
         }
 
         const supabase = createClient()
@@ -146,7 +144,7 @@ export default function EditContractPage({ params }: { params: Promise<{ id: str
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-slate-300 mb-2">Aylık Kira (TL) *</label>
                         <input name="rent_amount" type="number" required min="0" defaultValue={contract.rent_amount} className="input-dark" />
@@ -155,11 +153,8 @@ export default function EditContractPage({ params }: { params: Promise<{ id: str
                         <label className="block text-sm font-medium text-slate-300 mb-2">Depozito (TL)</label>
                         <input name="deposit_amount" type="number" min="0" defaultValue={contract.deposit_amount} className="input-dark" />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-slate-300 mb-2">Ödeme Günü *</label>
-                        <input name="payment_day" type="number" required min="1" max="31" defaultValue={contract.payment_day || 5} className="input-dark" />
-                    </div>
                 </div>
+                <p className="text-xs text-slate-500">Ödeme günü mülk bilgilerinden alınır.</p>
 
                 <div>
                     <label className="block text-sm font-medium text-slate-300 mb-2">
