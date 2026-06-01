@@ -228,22 +228,32 @@ export async function POST(request: Request) {
 
   const usedKeySource = SUPABASE_SERVICE_KEY ? 'SUPABASE_SERVICE_ROLE_KEY' : 'NEXT_PUBLIC_SUPABASE_ANON_KEY'
 
-  // Supabase bağlantısını test et
+  // Supabase bağlantısını test et - raw response ile
   try {
-    const testClient = createSupabaseClient<Database>(SUPABASE_URL, keyToUse)
-    const { error: testError } = await testClient.from('notification_settings').select('id', { count: 'exact', head: true })
-    if (testError) {
-      const errorMsg = testError.message?.toLowerCase() || ''
-      if (errorMsg.includes('invalid api key') || errorMsg.includes('api key')) {
-        return NextResponse.json({
-          error: `❌ Geçersiz Supabase API key. Kullanılan: ${usedKeySource}.`,
-          cozum: `Vercel Dashboard > Settings > Environment Variables > SUPABASE_SERVICE_ROLE_KEY ekleyin. Değeri: Supabase Dashboard > Settings > API > service_role key (jwt-bashed: service_role)`
-        }, { status: 500 })
+    const testUrl = `${SUPABASE_URL}/rest/v1/notification_settings?select=id&limit=1`
+    const testResponse = await fetch(testUrl, {
+      headers: {
+        'apikey': keyToUse,
+        'Authorization': `Bearer ${keyToUse}`,
+        'Content-Type': 'application/json',
       }
-      return NextResponse.json({ error: `Supabase hatası: ${testError.message}` }, { status: 500 })
+    })
+    if (!testResponse.ok) {
+      const testText = await testResponse.text()
+      return NextResponse.json({
+        error: `Supabase bağlantı hatası (HTTP ${testResponse.status})`,
+        hata_detay: testText.substring(0, 500),
+        kullanilan_key: usedKeySource,
+        cozum: `1. Supabase Dashboard > Settings > API sayfasından service_role key'i kopyalayın (jwt-bashed: service_role).\n2. Vercel Dashboard > Settings > Environment Variables > SUPABASE_SERVICE_ROLE_KEY'e yapıştırın.\n3. Projeyi Redeploy edin.`
+      }, { status: 500 })
     }
   } catch (connError: any) {
-    return NextResponse.json({ error: `Bağlantı hatası: ${connError?.message || 'Bilinmeyen'}` }, { status: 500 })
+    return NextResponse.json({
+      error: `Supabase bağlantı hatası`,
+      hata_detay: connError?.message || JSON.stringify(connError),
+      kullanilan_key: usedKeySource,
+      cozum: `NEXT_PUBLIC_SUPABASE_URL değerini kontrol edin (https://xxxxx.supabase.co). Vercel'de doğru tanımlandığından emin olun.`
+    }, { status: 500 })
   }
 
   const supabase = createSupabaseClient<Database>(SUPABASE_URL, keyToUse)
