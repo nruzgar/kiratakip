@@ -11,7 +11,10 @@ function formatCurrency(value: number) {
 }
 
 function currentTimeKey() {
-  return new Date().toTimeString().slice(0, 5)
+  // Türkiye saati (UTC+3) ile şu anki saati HH:MM formatında döndür
+  const now = new Date()
+  const trTime = new Date(now.getTime() + 3 * 60 * 60 * 1000)
+  return trTime.toISOString().slice(11, 16)
 }
 
 function todayDateKey() {

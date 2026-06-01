@@ -45,7 +45,11 @@ export default async function ContractsPage() {
                   const isExpiringSoon = !isExpired && daysLeft <= 30
                   return (
                     <tr key={contract.id}>
-                      <td className="font-medium">{contract.tenants?.full_name || '—'}</td>
+                      <td className="font-medium">
+                        <Link href={`/contracts/${contract.id}`} className="hover:text-indigo-400 transition-colors">
+                          {contract.tenants?.full_name || '—'}
+                        </Link>
+                      </td>
                       <td className="text-slate-400">{contract.properties?.name || '—'}</td>
                       <td className="text-slate-400">{new Date(contract.start_date).toLocaleDateString('tr-TR')}</td>
                       <td className="text-slate-400">{endDate.toLocaleDateString('tr-TR')}</td>
@@ -70,7 +74,7 @@ export default async function ContractsPage() {
               const isExpired = daysLeft < 0
               const isExpiringSoon = !isExpired && daysLeft <= 30
               return (
-                <div key={contract.id} className="glass-card p-4">
+                <Link key={contract.id} href={`/contracts/${contract.id}`} className="glass-card p-4 block hover:border-indigo-500/30 transition-colors">
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <p className="font-medium text-white">{contract.tenants?.full_name || '—'}</p>
@@ -84,7 +88,7 @@ export default async function ContractsPage() {
                     <span>{new Date(contract.start_date).toLocaleDateString('tr-TR')} - {endDate.toLocaleDateString('tr-TR')}</span>
                     <span className="font-medium text-white">{(contract.rent_amount || 0).toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })}</span>
                   </div>
-                </div>
+                </Link>
               )
             })}
           </div>
