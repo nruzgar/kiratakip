@@ -215,12 +215,28 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
 }
 
 export async function POST(request: Request) {
+  const body = await request.json().catch(() => null)
+  const action = body?.action ?? 'trigger'
+
+  // Test bildirimi sadece Telegram API kullanır, Supabase bağlantısı GEREKTİRMEZ
+  if (action === 'test') {
+    const telegramChatId = body?.telegram_chat_id
+    if (!telegramChatId || typeof telegramChatId !== 'string') {
+      return NextResponse.json({ error: 'telegram_chat_id zorunlu.' }, { status: 400 })
+    }
+    try {
+      await sendTelegramMessage(telegramChatId, '*🏠 KiraTakip Test Bildirimi*\n\nTelegram bildirimleriniz başarıyla çalışıyor! 🎉\n\nKullanabileceğiniz özellikler:\n• 📋 Günlük kira özeti\n• ⚠️ Gecikmiş ödeme uyarıları\n• 📆 Sözleşme bitiş hatırlatmaları\n\nAyarlar sayfasından detayları yapılandırabilirsiniz.')
+      return NextResponse.json({ success: true })
+    } catch (error: any) {
+      return NextResponse.json({ error: `Telegram hatası: ${error.message}` }, { status: 500 })
+    }
+  }
+
+  // Günlük özet ve bildirimler için Supabase bağlantısı gerekli
   if (!SUPABASE_URL) {
     return NextResponse.json({ error: 'NEXT_PUBLIC_SUPABASE_URL eksik.' }, { status: 500 })
   }
 
-  // STRATEJİ: Önce service_role_key dene, yoksa anon_key kullan
-  // RLS policy'ler user_id'ye göre izin veriyor, user_id filter ile sorguluyoruz
   const keyToUse = SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   if (!keyToUse) {
     return NextResponse.json({ error: 'Supabase API key eksik.' }, { status: 500 })
@@ -228,7 +244,7 @@ export async function POST(request: Request) {
 
   const usedKeySource = SUPABASE_SERVICE_KEY ? 'SUPABASE_SERVICE_ROLE_KEY' : 'NEXT_PUBLIC_SUPABASE_ANON_KEY'
 
-  // Supabase bağlantısını test et - raw response ile
+  // Supabase bağlantısını test et
   try {
     const testUrl = `${SUPABASE_URL}/rest/v1/notification_settings?select=id&limit=1`
     const testResponse = await fetch(testUrl, {
@@ -242,36 +258,19 @@ export async function POST(request: Request) {
       const testText = await testResponse.text()
       return NextResponse.json({
         error: `Supabase bağlantı hatası (HTTP ${testResponse.status})`,
-        hata_detay: testText.substring(0, 500),
+        hata_detay: testText.substring(0, 1000),
         kullanilan_key: usedKeySource,
-        cozum: `1. Supabase Dashboard > Settings > API sayfasından service_role key'i kopyalayın (jwt-bashed: service_role).\n2. Vercel Dashboard > Settings > Environment Variables > SUPABASE_SERVICE_ROLE_KEY'e yapıştırın.\n3. Projeyi Redeploy edin.`
+        cozum: `Supabase Dashboard > Settings > API > service_role key'i kopyalayın (jwt-bashed: service_role). Vercel > Environment Variables > SUPABASE_SERVICE_ROLE_KEY'e ekleyip Redeploy edin.`
       }, { status: 500 })
     }
   } catch (connError: any) {
     return NextResponse.json({
-      error: `Supabase bağlantı hatası`,
-      hata_detay: connError?.message || JSON.stringify(connError),
+      error: `Supabase bağlantı hatası: ${connError?.message || 'Bilinmeyen'}`,
       kullanilan_key: usedKeySource,
-      cozum: `NEXT_PUBLIC_SUPABASE_URL değerini kontrol edin (https://xxxxx.supabase.co). Vercel'de doğru tanımlandığından emin olun.`
     }, { status: 500 })
   }
 
   const supabase = createSupabaseClient<Database>(SUPABASE_URL, keyToUse)
-  const body = await request.json().catch(() => null)
-  const action = body?.action ?? 'trigger'
-
-  if (action === 'test') {
-    const telegramChatId = body?.telegram_chat_id
-    if (!telegramChatId || typeof telegramChatId !== 'string') {
-      return NextResponse.json({ error: 'telegram_chat_id zorunlu.' }, { status: 400 })
-    }
-    try {
-      await sendTelegramMessage(telegramChatId, '*🏠 KiraTakip Test Bildirimi*\n\nTelegram bildirimleriniz başarıyla çalışıyor! 🎉\n\nKullanabileceğiniz özellikler:\n• 📋 Günlük kira özeti\n• ⚠️ Gecikmiş ödeme uyarıları\n• 📆 Sözleşme bitiş hatırlatmaları\n\nAyarlar sayfasından detayları yapılandırabilirsiniz.')
-      return NextResponse.json({ success: true, key_source: usedKeySource })
-    } catch (error: any) {
-      return NextResponse.json({ error: `Telegram hatası: ${error.message}` }, { status: 500 })
-    }
-  }
 
   const force = body?.force === true
   const { data: settings, error } = await supabase
