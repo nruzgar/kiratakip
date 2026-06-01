@@ -4,8 +4,7 @@ import { Database } from '@/types/database'
 import { sendTelegramMessage } from '@/lib/telegram'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-// Service role key kullan - RLS'yi bypass etmek için
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 function formatCurrency(value: number) {
   return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
@@ -38,7 +37,6 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
     const month = new Date().getMonth() + 1
     const year = new Date().getFullYear()
 
-    // Bu ayki tüm kira dönemleri - kiracı ve mülk bilgileriyle
     const { data: thisMonthPeriods, error: monthError } = await supabase
       .from('rent_periods')
       .select('expected_amount,paid_amount,status,tenants(full_name),properties(name),due_date')
@@ -46,24 +44,17 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
       .eq('year', year)
       .eq('month', month)
 
-    if (monthError) {
-      throw monthError
-    }
+    if (monthError) { throw monthError }
 
     const thisMonthAny = (thisMonthPeriods ?? []) as any[]
-
-    // Genel toplamlar
     const totalExpected = thisMonthAny.reduce((sum, row) => sum + (row.expected_amount || 0), 0)
     const totalPaid = thisMonthAny.reduce((sum, row) => sum + (row.paid_amount || 0), 0)
     const overdueThisMonth = thisMonthAny.filter((row) => row.status === 'overdue').length
 
-    // Kiracı bazında grupla
     const tenantMap = new Map<string, { name: string; property: string; expected: number; paid: number; status: string }[]>()
     for (const row of thisMonthAny) {
       const tenantName = row.tenants?.full_name ?? 'Bilinmeyen Kiracı'
-      if (!tenantMap.has(tenantName)) {
-        tenantMap.set(tenantName, [])
-      }
+      if (!tenantMap.has(tenantName)) { tenantMap.set(tenantName, []) }
       tenantMap.get(tenantName)!.push({
         name: tenantName,
         property: row.properties?.name ?? '-',
@@ -73,33 +64,28 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
       })
     }
 
-    // Bu ay biten sözleşmeler
     const { data: endingContracts, error: endError } = await supabase
       .from('contracts')
       .select('end_date,tenants(full_name),properties(name)')
       .eq('user_id', setting.user_id)
       .gte('end_date', today)
-      .lte('end_date', new Date(year, month, 0).toISOString().slice(0, 10)) // ay sonu
+      .lte('end_date', new Date(year, month, 0).toISOString().slice(0, 10))
       .order('end_date', { ascending: true })
 
     if (endError) throw endError
-
     const endingAny = (endingContracts ?? []) as any[]
 
-    // Başlık ve özet
     const monthName = new Date(year, month - 1).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
     lines.push(`📋 *${monthName} Kira Özeti*`)
     lines.push('')
     lines.push(`🏢 Toplam kira: *${formatCurrency(totalExpected)}*`)
     lines.push(`✅ Tahsil edilen: *${formatCurrency(totalPaid)}*`)
     lines.push(`⏳ Kalan: *${formatCurrency(totalExpected - totalPaid)}*`)
-
     const collectionRate = totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0
     lines.push(`📊 Tahsilat oranı: *%${collectionRate}*`)
     lines.push(`⚠️ Geciken: *${overdueThisMonth}* adet`)
     lines.push('')
 
-    // Kiracı bazında detay
     if (thisMonthAny.length > 0) {
       lines.push('*👥 Kiracı Bazında Durum:*')
       for (const [tenantName, periods] of tenantMap) {
@@ -107,24 +93,20 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
         const tenantTotalPaid = periods.reduce((s, p) => s + p.paid, 0)
         const tenantRemaining = tenantTotalExpected - tenantTotalPaid
         const propertyName = periods[0]?.property ?? '-'
-
         let statusEmoji = '✅'
         const allPaid = periods.every(p => p.status === 'paid')
         const anyOverdue = periods.some(p => p.status === 'overdue')
         const anyPartial = periods.some(p => p.status === 'partial')
-
         if (allPaid) statusEmoji = '✅'
         else if (anyOverdue) statusEmoji = '🔴'
         else if (anyPartial) statusEmoji = '🟡'
         else statusEmoji = '⚪'
-
         lines.push(`${statusEmoji} *${tenantName}* — ${propertyName}`)
         lines.push(`   Kira: ${formatCurrency(tenantTotalExpected)} | Ödenen: ${formatCurrency(tenantTotalPaid)} | Kalan: ${formatCurrency(tenantRemaining)}`)
       }
       lines.push('')
     }
 
-    // Bugün ödeme yapılanlar (bugünkü ödemeler)
     const { data: todayPayments, error: todayError } = await supabase
       .from('payments')
       .select('amount,payment_date,method,tenants(full_name)')
@@ -134,7 +116,6 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
       .order('payment_date', { ascending: false })
 
     if (todayError) throw todayError
-
     const todayPaymentsAny = (todayPayments ?? []) as any[]
     if (todayPaymentsAny.length > 0) {
       const todayTotal = todayPaymentsAny.reduce((s, p) => s + (p.amount || 0), 0)
@@ -147,7 +128,6 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
       lines.push('')
     }
 
-    // Bu ay sona erecek sözleşmeler
     if (endingAny.length > 0) {
       lines.push(`*📆 Bu Ay Sona Eren Sözleşmeler*`)
       for (const contract of endingAny) {
@@ -158,7 +138,6 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
       lines.push('')
     }
 
-    // Kısa not
     if (totalExpected - totalPaid <= 0) {
       lines.push('🎉 *Bu ay tüm kiracılar ödemelerini tamamladı!*')
     } else if (overdueThisMonth > 0) {
@@ -176,9 +155,7 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
       .order('due_date', { ascending: true })
       .limit(10)
 
-    if (overdueError) {
-      throw overdueError
-    }
+    if (overdueError) { throw overdueError }
     const overdueAny = (overdue ?? []) as any[]
 
     if (overdueAny.length > 0) {
@@ -212,9 +189,7 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
       .order('end_date', { ascending: true })
       .limit(5)
 
-    if (contractError) {
-      throw contractError
-    }
+    if (contractError) { throw contractError }
     const contractsAny = (contracts ?? []) as any[]
 
     if (contractsAny.length > 0) {
@@ -240,29 +215,38 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
 }
 
 export async function POST(request: Request) {
-  // Debug: hangi key kullanılıyor?
-  const usedKeySource = process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SUPABASE_SERVICE_ROLE_KEY' : 'NEXT_PUBLIC_SUPABASE_ANON_KEY (fallback)'
-
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    return NextResponse.json({ error: 'Supabase ayarları eksik. NEXT_PUBLIC_SUPABASE_URL ve SUPABASE_SERVICE_ROLE_KEY (veya NEXT_PUBLIC_SUPABASE_ANON_KEY) tanımlanmalı.' }, { status: 500 })
+  if (!SUPABASE_URL) {
+    return NextResponse.json({ error: 'NEXT_PUBLIC_SUPABASE_URL eksik.' }, { status: 500 })
   }
+
+  // STRATEJİ: Önce service_role_key dene, yoksa anon_key kullan
+  // RLS policy'ler user_id'ye göre izin veriyor, user_id filter ile sorguluyoruz
+  const keyToUse = SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!keyToUse) {
+    return NextResponse.json({ error: 'Supabase API key eksik.' }, { status: 500 })
+  }
+
+  const usedKeySource = SUPABASE_SERVICE_KEY ? 'SUPABASE_SERVICE_ROLE_KEY' : 'NEXT_PUBLIC_SUPABASE_ANON_KEY'
 
   // Supabase bağlantısını test et
   try {
-    const testClient = createSupabaseClient<Database>(SUPABASE_URL, SUPABASE_KEY)
+    const testClient = createSupabaseClient<Database>(SUPABASE_URL, keyToUse)
     const { error: testError } = await testClient.from('notification_settings').select('id', { count: 'exact', head: true })
     if (testError) {
-      return NextResponse.json({
-        error: `Supabase bağlantı hatası: ${testError.message}. Kullanılan key: ${usedKeySource}. SUPABASE_SERVICE_ROLE_KEY değerini Supabase Dashboard > Settings > API > service_role key bölümünden kopyalayıp Vercel env değişkenlerine ekleyin.`
-      }, { status: 500 })
+      const errorMsg = testError.message?.toLowerCase() || ''
+      if (errorMsg.includes('invalid api key') || errorMsg.includes('api key')) {
+        return NextResponse.json({
+          error: `❌ Geçersiz Supabase API key. Kullanılan: ${usedKeySource}.`,
+          cozum: `Vercel Dashboard > Settings > Environment Variables > SUPABASE_SERVICE_ROLE_KEY ekleyin. Değeri: Supabase Dashboard > Settings > API > service_role key (jwt-bashed: service_role)`
+        }, { status: 500 })
+      }
+      return NextResponse.json({ error: `Supabase hatası: ${testError.message}` }, { status: 500 })
     }
   } catch (connError: any) {
-    return NextResponse.json({
-      error: `Supabase bağlantı hatası: ${connError?.message || 'Bilinmeyen hata'}. Kullanılan key: ${usedKeySource}.`
-    }, { status: 500 })
+    return NextResponse.json({ error: `Bağlantı hatası: ${connError?.message || 'Bilinmeyen'}` }, { status: 500 })
   }
 
-  const supabase = createSupabaseClient<Database>(SUPABASE_URL, SUPABASE_KEY)
+  const supabase = createSupabaseClient<Database>(SUPABASE_URL, keyToUse)
   const body = await request.json().catch(() => null)
   const action = body?.action ?? 'trigger'
 
@@ -271,12 +255,11 @@ export async function POST(request: Request) {
     if (!telegramChatId || typeof telegramChatId !== 'string') {
       return NextResponse.json({ error: 'telegram_chat_id zorunlu.' }, { status: 400 })
     }
-
     try {
       await sendTelegramMessage(telegramChatId, '*🏠 KiraTakip Test Bildirimi*\n\nTelegram bildirimleriniz başarıyla çalışıyor! 🎉\n\nKullanabileceğiniz özellikler:\n• 📋 Günlük kira özeti\n• ⚠️ Gecikmiş ödeme uyarıları\n• 📆 Sözleşme bitiş hatırlatmaları\n\nAyarlar sayfasından detayları yapılandırabilirsiniz.')
-      return NextResponse.json({ success: true })
+      return NextResponse.json({ success: true, key_source: usedKeySource })
     } catch (error: any) {
-      return NextResponse.json({ error: `Telegram hatası: ${error.message || 'Test mesajı gönderilemedi.'}` }, { status: 500 })
+      return NextResponse.json({ error: `Telegram hatası: ${error.message}` }, { status: 500 })
     }
   }
 
@@ -286,11 +269,17 @@ export async function POST(request: Request) {
     .select('id,user_id,telegram_chat_id,daily_summary_enabled,daily_summary_time,overdue_alert_enabled,contract_alert_days')
 
   if (error) {
-    return NextResponse.json({ error: `Supabase sorgu hatası: ${error.message}. Kullanılan key: ${usedKeySource}` }, { status: 500 })
+    const errorMsg = error.message?.toLowerCase() || ''
+    if (errorMsg.includes('invalid api key') || errorMsg.includes('api key')) {
+      return NextResponse.json({
+        error: `❌ Supabase API key geçersiz. Kullanılan: ${usedKeySource}.`,
+        cozum: `Vercel'e SUPABASE_SERVICE_ROLE_KEY ekleyin. Supabase Dashboard > Settings > API > service_role key kopyalayın.`
+      }, { status: 500 })
+    }
+    return NextResponse.json({ error: `Supabase sorgu hatası: ${error.message}` }, { status: 500 })
   }
 
   const results: Array<{ user_id: string; sent: boolean; reason?: string; error?: string }> = []
-
   const settingsAny = (settings ?? []) as any[]
 
   for (const setting of settingsAny) {
@@ -306,11 +295,16 @@ export async function POST(request: Request) {
 }
 
 export async function GET() {
-  if (!SUPABASE_URL || !SUPABASE_KEY) {
-    return NextResponse.json({ error: 'Supabase ayarları eksik.' }, { status: 500 })
+  if (!SUPABASE_URL) {
+    return NextResponse.json({ error: 'NEXT_PUBLIC_SUPABASE_URL eksik.' }, { status: 500 })
   }
 
-  const supabase = createSupabaseClient<Database>(SUPABASE_URL, SUPABASE_KEY)
+  const keyToUse = SUPABASE_SERVICE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!keyToUse) {
+    return NextResponse.json({ error: 'Supabase API key eksik.' }, { status: 500 })
+  }
+
+  const supabase = createSupabaseClient<Database>(SUPABASE_URL, keyToUse)
 
   const { data: settings, error } = await supabase
     .from('notification_settings')
