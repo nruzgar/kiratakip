@@ -11,10 +11,12 @@ function formatCurrency(value: number) {
   return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
 }
 
+function formatDate(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })
+}
+
 function currentTimeKey() {
-  // Türkiye saati (UTC+3) ile şu anki saati HH:MM formatında döndür
   const now = new Date()
-  // Intl.DateTimeFormat ile yerel saat diliminde formatla
   return now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Istanbul' })
 }
 
@@ -36,28 +38,132 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
     const month = new Date().getMonth() + 1
     const year = new Date().getFullYear()
 
-    const { data: rentPeriods, error: summaryError } = await supabase
+    // Bu ayki tüm kira dönemleri - kiracı ve mülk bilgileriyle
+    const { data: thisMonthPeriods, error: monthError } = await supabase
       .from('rent_periods')
-      .select('expected_amount,paid_amount,status')
+      .select('expected_amount,paid_amount,status,tenants(full_name),properties(name),due_date')
       .eq('user_id', setting.user_id)
       .eq('year', year)
       .eq('month', month)
 
-    if (summaryError) {
-      throw summaryError
+    if (monthError) {
+      throw monthError
     }
 
-    const rentPeriodsAny = (rentPeriods ?? []) as any[]
+    const thisMonthAny = (thisMonthPeriods ?? []) as any[]
 
-    const totalExpected = rentPeriodsAny.reduce((sum, row) => sum + (row.expected_amount || 0), 0) ?? 0
-    const totalPaid = rentPeriodsAny.reduce((sum, row) => sum + (row.paid_amount || 0), 0) ?? 0
-    const overdueCount = rentPeriodsAny.filter((row) => row.status === 'overdue').length || 0
+    // Genel toplamlar
+    const totalExpected = thisMonthAny.reduce((sum, row) => sum + (row.expected_amount || 0), 0)
+    const totalPaid = thisMonthAny.reduce((sum, row) => sum + (row.paid_amount || 0), 0)
+    const overdueThisMonth = thisMonthAny.filter((row) => row.status === 'overdue').length
 
-    lines.push('📋 *Günlük Özet*')
-    lines.push(`Beklenen kira: ${formatCurrency(totalExpected)}`)
-    lines.push(`Tahsil edilen: ${formatCurrency(totalPaid)}`)
-    lines.push(`Kalan: ${formatCurrency(totalExpected - totalPaid)}`)
-    lines.push(`Gecikmiş dönem: ${overdueCount} adet`)
+    // Kiracı bazında grupla
+    const tenantMap = new Map<string, { name: string; property: string; expected: number; paid: number; status: string }[]>()
+    for (const row of thisMonthAny) {
+      const tenantName = row.tenants?.full_name ?? 'Bilinmeyen Kiracı'
+      if (!tenantMap.has(tenantName)) {
+        tenantMap.set(tenantName, [])
+      }
+      tenantMap.get(tenantName)!.push({
+        name: tenantName,
+        property: row.properties?.name ?? '-',
+        expected: row.expected_amount || 0,
+        paid: row.paid_amount || 0,
+        status: row.status,
+      })
+    }
+
+    // Bu ay biten sözleşmeler
+    const { data: endingContracts, error: endError } = await supabase
+      .from('contracts')
+      .select('end_date,tenants(full_name),properties(name)')
+      .eq('user_id', setting.user_id)
+      .gte('end_date', today)
+      .lte('end_date', new Date(year, month, 0).toISOString().slice(0, 10)) // ay sonu
+      .order('end_date', { ascending: true })
+
+    if (endError) throw endError
+
+    const endingAny = (endingContracts ?? []) as any[]
+
+    // Başlık ve özet
+    const monthName = new Date(year, month - 1).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
+    lines.push(`📋 *${monthName} Kira Özeti*`)
+    lines.push('')
+    lines.push(`🏢 Toplam kira: *${formatCurrency(totalExpected)}*`)
+    lines.push(`✅ Tahsil edilen: *${formatCurrency(totalPaid)}*`)
+    lines.push(`⏳ Kalan: *${formatCurrency(totalExpected - totalPaid)}*`)
+
+    const collectionRate = totalExpected > 0 ? Math.round((totalPaid / totalExpected) * 100) : 0
+    lines.push(`📊 Tahsilat oranı: *%${collectionRate}*`)
+    lines.push(`⚠️ Geciken: *${overdueThisMonth}* adet`)
+    lines.push('')
+
+    // Kiracı bazında detay
+    if (thisMonthAny.length > 0) {
+      lines.push('*👥 Kiracı Bazında Durum:*')
+      for (const [tenantName, periods] of tenantMap) {
+        const tenantTotalExpected = periods.reduce((s, p) => s + p.expected, 0)
+        const tenantTotalPaid = periods.reduce((s, p) => s + p.paid, 0)
+        const tenantRemaining = tenantTotalExpected - tenantTotalPaid
+        const propertyName = periods[0]?.property ?? '-'
+
+        let statusEmoji = '✅'
+        const allPaid = periods.every(p => p.status === 'paid')
+        const anyOverdue = periods.some(p => p.status === 'overdue')
+        const anyPartial = periods.some(p => p.status === 'partial')
+
+        if (allPaid) statusEmoji = '✅'
+        else if (anyOverdue) statusEmoji = '🔴'
+        else if (anyPartial) statusEmoji = '🟡'
+        else statusEmoji = '⚪'
+
+        lines.push(`${statusEmoji} *${tenantName}* — ${propertyName}`)
+        lines.push(`   Kira: ${formatCurrency(tenantTotalExpected)} | Ödenen: ${formatCurrency(tenantTotalPaid)} | Kalan: ${formatCurrency(tenantRemaining)}`)
+      }
+      lines.push('')
+    }
+
+    // Bugün ödeme yapılanlar (bugünkü ödemeler)
+    const { data: todayPayments, error: todayError } = await supabase
+      .from('payments')
+      .select('amount,payment_date,method,tenants(full_name)')
+      .eq('user_id', setting.user_id)
+      .gte('payment_date', today)
+      .lte('payment_date', today)
+      .order('payment_date', { ascending: false })
+
+    if (todayError) throw todayError
+
+    const todayPaymentsAny = (todayPayments ?? []) as any[]
+    if (todayPaymentsAny.length > 0) {
+      const todayTotal = todayPaymentsAny.reduce((s, p) => s + (p.amount || 0), 0)
+      lines.push(`*💳 Bugünkü Tahsilatlar (${formatDate(today)})*`)
+      for (const payment of todayPaymentsAny) {
+        const methodLabel = payment.method === 'bank' ? '🏦' : payment.method === 'cash' ? '💵' : payment.method === 'credit_card' ? '💳' : '📄'
+        lines.push(`${methodLabel} ${payment.tenants?.full_name ?? 'Kiracı'}: +${formatCurrency(payment.amount || 0)}`)
+      }
+      lines.push(`Toplam bugün: *${formatCurrency(todayTotal)}*`)
+      lines.push('')
+    }
+
+    // Bu ay sona erecek sözleşmeler
+    if (endingAny.length > 0) {
+      lines.push(`*📆 Bu Ay Sona Eren Sözleşmeler*`)
+      for (const contract of endingAny) {
+        const daysLeft = Math.ceil((new Date(contract.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+        const name = contract.tenants?.full_name ?? contract.properties?.name ?? 'Sözleşme'
+        lines.push(`- ${name}: ${formatDate(contract.end_date)} (${daysLeft} gün kaldı)`)
+      }
+      lines.push('')
+    }
+
+    // Kısa not
+    if (totalExpected - totalPaid <= 0) {
+      lines.push('🎉 *Bu ay tüm kiracılar ödemelerini tamamladı!*')
+    } else if (overdueThisMonth > 0) {
+      lines.push('⚠️ *Gecikmiş ödemeler için kiracılarınızla iletişime geçmeyi unutmayın.*')
+    }
     lines.push('')
   }
 
@@ -68,7 +174,7 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
       .eq('user_id', setting.user_id)
       .eq('status', 'overdue')
       .order('due_date', { ascending: true })
-      .limit(5)
+      .limit(10)
 
     if (overdueError) {
       throw overdueError
@@ -76,12 +182,17 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
     const overdueAny = (overdue ?? []) as any[]
 
     if (overdueAny.length > 0) {
-      lines.push('⚠️ *Gecikmiş kira uyarısı*')
+      const overdueTotal = overdueAny.reduce((s, r) => s + (r.expected_amount - r.paid_amount), 0)
+      lines.push('⚠️ *Gecikmiş Kira Uyarısı*')
+      lines.push(`Toplam gecikmiş alacak: *${formatCurrency(overdueTotal)}* (${overdueAny.length} dönem)`)
+      lines.push('')
       overdueAny.forEach((row) => {
         const tenantName = row.tenants?.full_name ?? 'Kiracı'
         const propertyName = row.properties?.name ?? 'Mülk'
-        const amount = formatCurrency(row.expected_amount || 0)
-        lines.push(`- ${tenantName} / ${propertyName} | ${row.due_date} | ${amount}`)
+        const debt = formatCurrency(row.expected_amount - (row.paid_amount || 0))
+        const dueDate = formatDate(row.due_date)
+        lines.push(`🔴 *${tenantName}* — ${propertyName}`)
+        lines.push(`   Vade: ${dueDate} | Borç: ${debt}`)
       })
       lines.push('')
     }
@@ -107,11 +218,11 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
     const contractsAny = (contracts ?? []) as any[]
 
     if (contractsAny.length > 0) {
-      lines.push('📆 *Sözleşme bitiş hatırlatması*')
+      lines.push('📆 *Sözleşme Bitiş Hatırlatması*')
       contractsAny.forEach((contract) => {
         const name = contract.tenants?.full_name ?? contract.properties?.name ?? 'Sözleşme'
         const daysLeft = Math.ceil((new Date(contract.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-        lines.push(`- ${name} | ${contract.end_date} | ${daysLeft} gün kaldı`)
+        lines.push(`- *${name}* | ${formatDate(contract.end_date)} | ⏳ ${daysLeft} gün kaldı`)
       })
       lines.push('')
     }
@@ -121,7 +232,8 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
     return { sent: false, reason: 'Gönderilecek bildirim yok' }
   }
 
-  const text = ['*KiraTakip Bildirimleri*', '', ...lines].join('\n')
+  const header = lines.join('\n')
+  const text = ['*🏠 KiraTakip Bildirimleri*', '', header].join('\n')
   await sendTelegramMessage(setting.telegram_chat_id, text)
 
   return { sent: true }
@@ -143,7 +255,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      await sendTelegramMessage(telegramChatId, '*KiraTakip Test Bildirimi*\nBu, Telegram bildirimlerinin çalıştığını doğrulamak için gönderildi.')
+      await sendTelegramMessage(telegramChatId, '*🏠 KiraTakip Test Bildirimi*\n\nTelegram bildirimleriniz başarıyla çalışıyor! 🎉\n\nKullanabileceğiniz özellikler:\n• 📋 Günlük kira özeti\n• ⚠️ Gecikmiş ödeme uyarıları\n• 📆 Sözleşme bitiş hatırlatmaları\n\nAyarlar sayfasından detayları yapılandırabilirsiniz.')
       return NextResponse.json({ success: true })
     } catch (error: any) {
       return NextResponse.json({ error: error.message || 'Test mesajı gönderilemedi.' }, { status: 500 })
