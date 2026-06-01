@@ -240,8 +240,26 @@ async function buildNotificationForUser(supabase: any, setting: Database['public
 }
 
 export async function POST(request: Request) {
+  // Debug: hangi key kullanılıyor?
+  const usedKeySource = process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SUPABASE_SERVICE_ROLE_KEY' : 'NEXT_PUBLIC_SUPABASE_ANON_KEY (fallback)'
+
   if (!SUPABASE_URL || !SUPABASE_KEY) {
-    return NextResponse.json({ error: 'Supabase ayarları eksik.' }, { status: 500 })
+    return NextResponse.json({ error: 'Supabase ayarları eksik. NEXT_PUBLIC_SUPABASE_URL ve SUPABASE_SERVICE_ROLE_KEY (veya NEXT_PUBLIC_SUPABASE_ANON_KEY) tanımlanmalı.' }, { status: 500 })
+  }
+
+  // Supabase bağlantısını test et
+  try {
+    const testClient = createSupabaseClient<Database>(SUPABASE_URL, SUPABASE_KEY)
+    const { error: testError } = await testClient.from('notification_settings').select('id', { count: 'exact', head: true })
+    if (testError) {
+      return NextResponse.json({
+        error: `Supabase bağlantı hatası: ${testError.message}. Kullanılan key: ${usedKeySource}. SUPABASE_SERVICE_ROLE_KEY değerini Supabase Dashboard > Settings > API > service_role key bölümünden kopyalayıp Vercel env değişkenlerine ekleyin.`
+      }, { status: 500 })
+    }
+  } catch (connError: any) {
+    return NextResponse.json({
+      error: `Supabase bağlantı hatası: ${connError?.message || 'Bilinmeyen hata'}. Kullanılan key: ${usedKeySource}.`
+    }, { status: 500 })
   }
 
   const supabase = createSupabaseClient<Database>(SUPABASE_URL, SUPABASE_KEY)
@@ -258,7 +276,7 @@ export async function POST(request: Request) {
       await sendTelegramMessage(telegramChatId, '*🏠 KiraTakip Test Bildirimi*\n\nTelegram bildirimleriniz başarıyla çalışıyor! 🎉\n\nKullanabileceğiniz özellikler:\n• 📋 Günlük kira özeti\n• ⚠️ Gecikmiş ödeme uyarıları\n• 📆 Sözleşme bitiş hatırlatmaları\n\nAyarlar sayfasından detayları yapılandırabilirsiniz.')
       return NextResponse.json({ success: true })
     } catch (error: any) {
-      return NextResponse.json({ error: error.message || 'Test mesajı gönderilemedi.' }, { status: 500 })
+      return NextResponse.json({ error: `Telegram hatası: ${error.message || 'Test mesajı gönderilemedi.'}` }, { status: 500 })
     }
   }
 
@@ -268,7 +286,7 @@ export async function POST(request: Request) {
     .select('id,user_id,telegram_chat_id,daily_summary_enabled,daily_summary_time,overdue_alert_enabled,contract_alert_days')
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: `Supabase sorgu hatası: ${error.message}. Kullanılan key: ${usedKeySource}` }, { status: 500 })
   }
 
   const results: Array<{ user_id: string; sent: boolean; reason?: string; error?: string }> = []
