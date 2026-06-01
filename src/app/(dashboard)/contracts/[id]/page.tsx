@@ -134,7 +134,7 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
                                 </div>
                                 <div>
                                     <p className="text-xs text-slate-500 uppercase">Ödeme Günü</p>
-                                    <p className="text-white">Her ay {contract.payment_day}. gün</p>
+                                    <p className="text-white">Her ay {contract.properties?.payment_day || 5}. gün</p>
                                 </div>
                                 <div>
                                     <p className="text-xs text-slate-500 uppercase">Kalan Süre</p>

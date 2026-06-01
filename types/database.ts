@@ -98,7 +98,6 @@ export interface Database {
           end_date: string
           rent_amount: number
           deposit_amount: number
-          payment_day: number
           status: string
           file_url: string | null
           notes: string | null
@@ -114,7 +113,6 @@ export interface Database {
           end_date: string
           rent_amount: number
           deposit_amount?: number
-          payment_day: number
           status?: string
           file_url?: string | null
           notes?: string | null
@@ -130,7 +128,6 @@ export interface Database {
           end_date?: string
           rent_amount?: number
           deposit_amount?: number
-          payment_day?: number
           status?: string
           file_url?: string | null
           notes?: string | null

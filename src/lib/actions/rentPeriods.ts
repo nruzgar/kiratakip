@@ -26,7 +26,7 @@ export async function generateRentPeriods(contractId: string) {
 
     const startDate = new Date(contract.start_date)
     const endDate = new Date(contract.end_date)
-    const paymentDay = contract.payment_day || 5
+    const paymentDay = 5 // payment_day properties tablosunda
 
     const periods: Array<{
         contract_id: string
