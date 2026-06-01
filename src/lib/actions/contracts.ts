@@ -10,7 +10,7 @@ export async function cancelContract(contractId: string) {
 
     const { error } = await supabase
         .from('contracts')
-        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() } as any)
         .eq('id', contractId)
         .eq('user_id', user.id)
 

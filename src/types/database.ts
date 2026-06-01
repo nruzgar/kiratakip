@@ -98,12 +98,10 @@ export interface Database {
           end_date: string
           rent_amount: number
           deposit_amount: number
-          status: string
           file_url: string | null
           notes: string | null
           user_id: string
           created_at: string
-          updated_at: string
         }
         Insert: {
           id?: string
@@ -113,12 +111,10 @@ export interface Database {
           end_date: string
           rent_amount: number
           deposit_amount?: number
-          status?: string
           file_url?: string | null
           notes?: string | null
           user_id: string
           created_at?: string
-          updated_at?: string
         }
         Update: {
           id?: string
@@ -128,12 +124,10 @@ export interface Database {
           end_date?: string
           rent_amount?: number
           deposit_amount?: number
-          status?: string
           file_url?: string | null
           notes?: string | null
           user_id?: string
           created_at?: string
-          updated_at?: string
         }
         Relationships: [
           {
@@ -155,7 +149,6 @@ export interface Database {
       rent_periods: {
         Row: {
           id: string
-          contract_id: string
           tenant_id: string
           property_id: string
           year: number
@@ -169,7 +162,6 @@ export interface Database {
         }
         Insert: {
           id?: string
-          contract_id: string
           tenant_id: string
           property_id: string
           year: number
@@ -183,7 +175,6 @@ export interface Database {
         }
         Update: {
           id?: string
-          contract_id?: string
           tenant_id?: string
           property_id?: string
           year?: number
@@ -196,13 +187,6 @@ export interface Database {
           created_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "rent_periods_contract_id_fkey"
-            columns: ["contract_id"]
-            isOneToOne: false
-            referencedRelation: "contracts"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "rent_periods_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -229,9 +213,6 @@ export interface Database {
           amount: number
           method: string
           description: string | null
-          receipt_file_url: string | null
-          receipt_file_type: string | null
-          receipt_original_name: string | null
           user_id: string
           created_at: string
         }
@@ -244,9 +225,6 @@ export interface Database {
           amount: number
           method: string
           description?: string | null
-          receipt_file_url?: string | null
-          receipt_file_type?: string | null
-          receipt_original_name?: string | null
           user_id: string
           created_at?: string
         }
@@ -259,9 +237,6 @@ export interface Database {
           amount?: number
           method?: string
           description?: string | null
-          receipt_file_url?: string | null
-          receipt_file_type?: string | null
-          receipt_original_name?: string | null
           user_id?: string
           created_at?: string
         }
@@ -297,7 +272,6 @@ export interface Database {
           property_id: string
           file_url: string
           file_type: string
-          original_name: string
           user_id: string
           uploaded_at: string
         }
@@ -308,7 +282,6 @@ export interface Database {
           property_id: string
           file_url: string
           file_type: string
-          original_name: string
           user_id: string
           uploaded_at?: string
         }
@@ -319,7 +292,6 @@ export interface Database {
           property_id?: string
           file_url?: string
           file_type?: string
-          original_name?: string
           user_id?: string
           uploaded_at?: string
         }
@@ -382,18 +354,7 @@ export interface Database {
       }
     }
     Views: { [_ in never]: never }
-    Functions: {
-      get_debt_statement: {
-        Args: { p_tenant_id: string; p_user_id: string }
-        Returns: {
-          total_expected: number
-          total_paid: number
-          total_debt: number
-          overdue_months: number
-          avg_delay_days: number
-        }
-      }
-    }
+    Functions: { [_ in never]: never }
     Enums: { [_ in never]: never }
   }
 }

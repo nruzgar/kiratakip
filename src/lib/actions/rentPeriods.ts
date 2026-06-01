@@ -100,7 +100,7 @@ export async function deleteRentPeriods(contractId: string) {
     const { error } = await supabase
         .from('rent_periods')
         .delete()
-        .eq('contract_id', contractId)
+        .eq('contract_id' as any, contractId)
         .eq('user_id', user.id)
 
     if (error) {
@@ -121,7 +121,7 @@ export async function regenerateRentPeriods(contractId: string) {
     const { data: paidPeriods } = await supabase
         .from('rent_periods')
         .select('id')
-        .eq('contract_id', contractId)
+        .eq('contract_id' as any, contractId)
         .gt('paid_amount', 0)
 
     if (paidPeriods && paidPeriods.length > 0) {

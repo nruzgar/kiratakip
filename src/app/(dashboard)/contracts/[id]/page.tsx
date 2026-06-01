@@ -19,18 +19,19 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
 
     if (!contract) notFound()
 
-    const { data: rentPeriods } = await supabase
+    const { data: rentPeriods } = await (supabase
         .from('rent_periods')
         .select('*, payments(*, receipts(*))')
-        .eq('contract_id', id)
+        .eq('tenant_id' as any, contract.tenant_id)
         .eq('user_id', user.id)
         .order('year', { ascending: false })
-        .order('month', { ascending: false })
+        .order('month', { ascending: false }) as any)
 
-    const totalExpected = rentPeriods?.reduce((sum, p) => sum + (p.expected_amount || 0), 0) || 0
-    const totalPaid = rentPeriods?.reduce((sum, p) => sum + (p.paid_amount || 0), 0) || 0
+    const rentPeriodsAny = (rentPeriods ?? []) as any[]
+    const totalExpected = rentPeriodsAny.reduce((sum, p) => sum + (p.expected_amount || 0), 0) || 0
+    const totalPaid = rentPeriodsAny.reduce((sum, p) => sum + (p.paid_amount || 0), 0) || 0
     const totalDebt = totalExpected - totalPaid
-    const overdueCount = rentPeriods?.filter(p => p.status === 'overdue').length || 0
+    const overdueCount = rentPeriodsAny.filter(p => p.status === 'overdue').length || 0
 
     let signedUrl: string | null = null
     if (contract.file_url) {
@@ -43,8 +44,8 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
     const isExpired = daysLeft < 0
 
     // status NULL ise ve bitiş tarihi geçmemişse aktif say
-    const isActive = contract.status === 'active' || (!contract.status && !isExpired)
-    const isCancelled = contract.status === 'cancelled'
+    const isActive = (contract as any).status === 'active' || (!(contract as any).status && !isExpired)
+    const isCancelled = (contract as any).status === 'cancelled'
     const statusLabel = isActive ? 'Aktif' : isCancelled ? 'İptal Edildi' : 'Süresi Dolmuş'
     const statusBadge = isActive ? 'badge-success' : isCancelled ? 'badge-neutral' : 'badge-danger'
 
@@ -165,9 +166,9 @@ export default async function ContractDetailPage({ params }: { params: Promise<{
                 {/* Kira Dönemleri */}
                 <div className="lg:col-span-2 glass-card-static p-6 animate-fade-in-up stagger-2">
                     <h2 className="text-lg font-semibold text-white mb-4">💰 Kira Dönemleri</h2>
-                    {rentPeriods && rentPeriods.length > 0 ? (
+                    {rentPeriodsAny.length > 0 ? (
                         <div className="space-y-2">
-                            {rentPeriods.map((period) => {
+                            {rentPeriodsAny.map((period) => {
                                 const payments = (period.payments || []) as any[]
                                 return (
                                     <div key={period.id} className={`p-4 rounded-xl border ${period.status === 'paid' ? 'bg-green-500/10 border-green-500/20' :

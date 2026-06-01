@@ -13,7 +13,7 @@ export default async function DashboardPage() {
 
   // Bu ay kira dönemleri
   const { data: monthlyPeriods } = await supabase
-    .from('rent_periods')
+    .from('rent_periods' as any)
     .select('expected_amount, paid_amount, status')
     .eq('user_id', user.id)
     .eq('year', currentYear)
@@ -27,7 +27,7 @@ export default async function DashboardPage() {
 
   // Tüm gecikmiş dönemler
   const { data: allOverduePeriods } = await supabase
-    .from('rent_periods')
+    .from('rent_periods' as any)
     .select('expected_amount, paid_amount, status, tenants(full_name, id), properties(name)')
     .eq('user_id', user.id)
     .eq('status', 'overdue')
@@ -38,14 +38,15 @@ export default async function DashboardPage() {
   // Toplam özellikler
   const { data: properties } = await supabase
     .from('properties')
-    .select('id, status')
+    .select('id, status' as any)
     .eq('user_id', user.id)
-  const totalProperties = properties?.length || 0
-  const activeProperties = properties?.filter(p => p.status === 'active').length || 0
+  const propertiesAny = (properties ?? []) as any[]
+  const totalProperties = propertiesAny.length
+  const activeProperties = propertiesAny.filter(p => p.status === 'active').length || 0
 
   // Toplam kiracı (aktif)
   const { count: activeTenants } = await supabase
-    .from('tenants')
+    .from('tenants' as any)
     .select('id', { count: 'exact', head: true })
     .eq('user_id', user.id)
     .eq('is_active', true)
@@ -57,9 +58,9 @@ export default async function DashboardPage() {
 
   const { data: upcomingContracts } = await supabase
     .from('contracts')
-    .select('*, tenants(full_name, id), properties(name)')
+    .select('*, tenants(full_name, id), properties(name)' as any)
     .eq('user_id', user.id)
-    .eq('status', 'active')
+    .eq('status' as any, 'active')
     .lte('end_date', thirtyDaysLaterStr)
     .gte('end_date', todayStr)
     .order('end_date', { ascending: true })
@@ -67,7 +68,7 @@ export default async function DashboardPage() {
 
   // En çok borcu olan kiracılar (tüm dönemler)
   const { data: topDebtTenants } = await supabase
-    .from('rent_periods')
+    .from('rent_periods' as any)
     .select('tenant_id, tenants!inner(full_name), expected_amount, paid_amount')
     .eq('user_id', user.id)
     .neq('status', 'paid')
@@ -88,10 +89,10 @@ export default async function DashboardPage() {
   // Biten ama borcu kalan sözleşmeler
   const { data: expiredWithDebt } = await supabase
     .from('contracts')
-    .select('*, tenants(full_name), properties(name)')
+    .select('*, tenants(full_name), properties(name)' as any)
     .eq('user_id', user.id)
     .lt('end_date', todayStr)
-    .neq('status', 'cancelled')
+    .neq('status' as any, 'cancelled')
     .order('end_date', { ascending: false })
     .limit(5)
   const expiredWithDebtAny = (expiredWithDebt ?? []) as any[]
