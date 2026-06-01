@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { generateRentPeriods } from '@/lib/actions/rentPeriods'
 
 function NewContractContent() {
   const router = useRouter()
@@ -40,9 +41,33 @@ function NewContractContent() {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) { setMessage('Hata: Oturum açmanız gerekiyor'); setLoading(false); return }
-    const { error } = await supabase.from('contracts').insert({ ...contractData, user_id: user.id } as any)
-    if (error) { setMessage('Hata: ' + error.message) }
-    else { setMessage('Sözleşme başarıyla eklendi!'); setTimeout(() => router.push('/contracts'), 2000) }
+
+    // Önce sözleşmeyi ekle
+    const { data: insertedContract, error } = await supabase
+      .from('contracts')
+      .insert({ ...contractData, user_id: user.id, status: 'active', payment_day: 5 } as any)
+      .select('id')
+      .single()
+
+    if (error) {
+      setMessage('Hata: ' + error.message)
+      setLoading(false)
+      return
+    }
+
+    // Kira dönemlerini oluştur
+    if (insertedContract?.id) {
+      try {
+        await generateRentPeriods(insertedContract.id)
+      } catch (e: any) {
+        setMessage('Uyarı: Sözleşme eklendi ancak kira dönemleri oluşturulamadı: ' + e.message)
+        setLoading(false)
+        return
+      }
+    }
+
+    setMessage('Sözleşme başarıyla eklendi!')
+    setTimeout(() => router.push('/contracts'), 2000)
     setLoading(false)
   }
 
