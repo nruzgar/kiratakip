@@ -49,20 +49,25 @@ function NewPaymentContent() {
     const formData = new FormData(e.currentTarget)
     const rentPeriodId = formData.get('rent_period_id') as string
     const amount = Number(formData.get('amount'))
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setMessage('Hata: Oturum açmanız gerekiyor'); setLoading(false); return }
     const period = rentPeriods.find(p => p.id === rentPeriodId)
     if (!period) { setMessage('Hata: Kira dönemi bulunamadı'); setLoading(false); return }
     const remaining = period.expected_amount - period.paid_amount
     if (amount > remaining) { setMessage(`Hata: Maksimum ödenebilecek tutar: ${remaining.toLocaleString('tr-TR')} TL`); setLoading(false); return }
-    const { error } = await supabase.from('payments').insert({
-      rent_period_id: rentPeriodId, tenant_id: selectedTenant, property_id: period.property_id,
-      payment_date: formData.get('payment_date') as string, amount, method: formData.get('method') as string,
-      description: formData.get('description') as string, user_id: user.id,
+
+    // Server action ile ödemeyi kaydet (paid_amount ve status otomatik güncellenir)
+    const { createPayment } = await import('@/lib/actions/payments')
+    const result = await createPayment({
+      rent_period_id: rentPeriodId,
+      tenant_id: selectedTenant,
+      property_id: period.property_id,
+      payment_date: formData.get('payment_date') as string,
+      amount,
+      method: formData.get('method') as string,
+      description: formData.get('description') as string,
     })
-    if (error) { setMessage('Hata: ' + error.message) }
-    else { setMessage('Ödeme başarıyla eklendi!'); setTimeout(() => router.push('/dashboard'), 1500) }
+
+    if (result.success) { setMessage('Ödeme başarıyla eklendi!'); setTimeout(() => router.push('/dashboard'), 1500) }
+    else { setMessage('Hata: Ödeme eklenemedi'); }
     setLoading(false)
   }
 
