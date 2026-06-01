@@ -4,7 +4,8 @@ import { Database } from '@/types/database'
 import { sendTelegramMessage } from '@/lib/telegram'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// Service role key kullan - RLS'yi bypass etmek için
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 function formatCurrency(value: number) {
   return value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
@@ -13,8 +14,8 @@ function formatCurrency(value: number) {
 function currentTimeKey() {
   // Türkiye saati (UTC+3) ile şu anki saati HH:MM formatında döndür
   const now = new Date()
-  const trTime = new Date(now.getTime() + 3 * 60 * 60 * 1000)
-  return trTime.toISOString().slice(11, 16)
+  // Intl.DateTimeFormat ile yerel saat diliminde formatla
+  return now.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/Istanbul' })
 }
 
 function todayDateKey() {
