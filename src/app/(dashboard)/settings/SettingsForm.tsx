@@ -121,7 +121,14 @@ export default function SettingsForm({ settings }: { settings: any }) {
               const res = await fetch('/api/notifications', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'trigger', force: true }) })
               const data = await res.json()
               if (data.success) { const sent = data.results?.filter((r: any) => r.sent).length || 0; setMessage(`✅ Günlük özet gönderildi! (${sent} bildirim)`) }
-              else { setMessage('Hata: ' + (data.error || 'Bilinmeyen hata')) }
+              else {
+                const errorParts = []
+                if (data.error) errorParts.push(data.error)
+                if (data.hata_detay) errorParts.push(`\n📄 Detay: ${data.hata_detay}`)
+                if (data.kullanilan_key) errorParts.push(`\n🔑 Key: ${data.kullanilan_key}`)
+                if (data.cozum) errorParts.push(`\n💡 Çözüm: ${data.cozum}`)
+                setMessage('Hata: ' + errorParts.join(''))
+              }
             } catch (err: any) { setMessage('Hata: ' + (err.message || 'Bağlantı hatası')) }
             setLoading(false)
           }}
